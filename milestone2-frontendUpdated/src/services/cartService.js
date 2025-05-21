@@ -8,53 +8,55 @@ export const cartService = {
       const response = await api.get('/purchases/cart');
       console.log('Cart response:', response.data);
 
-      // Format the cart data to ensure all required fields are present
-      if (response.data && Array.isArray(response.data.cart)) {
-        const formattedCart = response.data.cart.map(item => {
-          // Ensure both chefId and kitchenId are set
-          const chefId = item.chefId || item.kitchenId;
-          const kitchenId = item.kitchenId || item.chefId;
-          
-          return {
-            chefId,
-            kitchenId,
-            dishName: item.dishName,
-            quantity: parseInt(item.quantity) || 1,
-            price: parseFloat(item.price) || 0,
-            image: item.image,
-            description: item.description
-          };
-        });
-
-        // Filter out any invalid items
-        const validCart = formattedCart.filter(item => 
-          item.chefId && 
-          item.kitchenId && 
-          item.dishName && 
-          !isNaN(item.quantity) && 
-          !isNaN(item.price)
-        );
-
-        return {
-          ...response,
-          data: {
-            ...response.data,
-            cart: validCart
-          }
-        };
+      // Ensure we have a valid response structure
+      if (!response.data) {
+        return { data: { cart: [] } };
       }
-      return response;
+
+      // If cart is not an array, initialize it
+      if (!Array.isArray(response.data.cart)) {
+        response.data.cart = [];
+      }
+
+      // Format the cart data
+      const formattedCart = response.data.cart.map(item => ({
+        chefId: item.chefId || item.kitchenId,
+        kitchenId: item.kitchenId || item.chefId,
+        dishName: item.dishName || '',
+        quantity: parseInt(item.quantity) || 1,
+        price: parseFloat(item.price) || 0,
+        image: item.image || '',
+        description: item.description || ''
+      }));
+
+      // Filter out invalid items
+      const validCart = formattedCart.filter(item =>
+        item.chefId &&
+        item.kitchenId &&
+        item.dishName &&
+        !isNaN(item.quantity) &&
+        !isNaN(item.price)
+      );
+
+      return {
+        data: {
+          cart: validCart,
+          totalItems: validCart.length,
+          totalPrice: validCart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+        }
+      };
     } catch (error) {
-      console.error('Error getting cart:', error.response?.data || error.message);
-      throw error;
+      console.error('Error getting cart:', error);
+      // Return empty cart on error
+      return { data: { cart: [] } };
     }
   },
-  
+
   // Add item to cart
   addToCart: async (item) => {
     try {
       console.log('Adding item to cart:', item);
-      
+
       // Validate item data
       if (!item.chefId && !item.kitchenId) {
         throw new Error('Missing chefId/kitchenId');
@@ -76,9 +78,9 @@ export const cartService = {
 
       // Log the exact payload being sent
       console.log('Sending cart payload:', payload);
-      
+
       // First check if item already exists in cart
-      const cartResponse = await api.get('/cart');
+      const cartResponse = await api.get('/purchases/cart');
       const currentCart = cartResponse.data.cart || [];
       const existingItem = currentCart.find(
         cartItem => cartItem.kitchenId === payload.kitchenId && cartItem.dishName === payload.dishName
@@ -87,7 +89,7 @@ export const cartService = {
       let response;
       if (existingItem) {
         // Update quantity if item exists
-        response = await api.put('/cart', {
+        response = await api.put('/purchases/cart', {
           kitchenId: payload.kitchenId,
           dishName: payload.dishName,
           quantity: existingItem.quantity + payload.quantity,
@@ -95,18 +97,18 @@ export const cartService = {
         });
       } else {
         // Add new item if it doesn't exist
-        response = await api.post('/cart', payload);
+        response = await api.post('/purchases/cart', payload);
       }
 
       console.log('Cart operation response:', response.data);
 
       // Verify the cart item was added/updated correctly
-      const updatedCartResponse = await api.get('/cart');
+      const updatedCartResponse = await api.get('/purchases/cart');
       const updatedCart = updatedCartResponse.data.cart || [];
       const updatedItem = updatedCart.find(
         cartItem => cartItem.kitchenId === payload.kitchenId && cartItem.dishName === payload.dishName
       );
-      
+
       if (!updatedItem) {
         throw new Error('Failed to add item to cart');
       }
@@ -134,12 +136,12 @@ export const cartService = {
       throw error;
     }
   },
-  
+
   // Update cart item quantity
   updateCartItem: async (itemId, quantity) => {
     try {
       console.log('Updating cart item:', { itemId, quantity });
-      
+
       // Get current cart to find the item's price
       const cartResponse = await api.get('/purchases/cart');
       const currentCart = cartResponse.data.cart || [];
@@ -157,7 +159,7 @@ export const cartService = {
         quantity: Math.max(1, parseInt(quantity)),
         price: parseFloat(existingItem.price) // Keep the existing price
       };
-      
+
       console.log('Sending update payload:', payload);
       const response = await api.put('/purchases/cart', payload);
       console.log('Update response:', response.data);
@@ -171,12 +173,12 @@ export const cartService = {
       throw error;
     }
   },
-  
+
   // Remove item from cart
   removeFromCart: async (item) => {
     try {
       console.log('Removing item from cart:', item);
-      
+
       // Validate item data
       if (!item.chefId) {
         throw new Error('Missing chefId');
@@ -192,14 +194,14 @@ export const cartService = {
       };
 
       console.log('Sending remove payload:', payload);
-      
+
       const response = await api.delete('/purchases/cart', { data: payload });
       console.log('Remove response:', response.data);
 
       // Verify the cart item was removed correctly
       const updatedCartResponse = await api.get('/purchases/cart');
       const updatedCart = updatedCartResponse.data.cart || [];
-      
+
       // Return the updated cart with the correct format for the frontend
       return {
         ...response,
@@ -222,16 +224,22 @@ export const cartService = {
       throw error;
     }
   },
-  
+
   // Create order from cart
   createOrder: async (orderData) => {
     try {
       console.log('Creating order with data:', orderData);
-      
+
       // Get current cart state
       const cartResponse = await api.get('/purchases/cart');
       console.log('Raw cart response:', cartResponse);
-      const currentCart = cartResponse.data.cart || [];
+
+      // Ensure cart data exists
+      if (!cartResponse.data || !cartResponse.data.cart) {
+        throw new Error('Invalid cart data received');
+      }
+
+      const currentCart = cartResponse.data.cart;
       console.log('Current cart items:', currentCart);
 
       if (currentCart.length === 0) {
@@ -244,10 +252,10 @@ export const cartService = {
 
       for (const item of currentCart) {
         console.log('Processing cart item:', item);
-        
+
         // Get the kitchen ID from the correct field
         const kitchenId = item.kitchenId || item.chefId;
-        
+
         // Skip invalid items
         if (!kitchenId || !item.dishName || !item.quantity || !item.price) {
           console.warn('Skipping invalid cart item:', {
@@ -291,7 +299,20 @@ export const cartService = {
       // Use the correct endpoint for creating a purchase
       const response = await api.post('/purchases', formattedOrder);
       console.log('Order response:', response.data);
-      return response;
+
+      // Ensure response has the expected structure
+      if (!response.data) {
+        throw new Error('Invalid response from server');
+      }
+
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          items: response.data.items || [], // Ensure items array exists
+          totalPrice: response.data.totalPrice || 0
+        }
+      };
     } catch (error) {
       console.error('Error creating order:', {
         status: error.response?.status,
@@ -301,12 +322,42 @@ export const cartService = {
       throw error;
     }
   },
-  
+
   // Get order history
   getOrderHistory: () => api.get('/users/order-history'),
-  
+
   // Get specific order
-  getOrder: (orderId) => api.get(`/purchases/${orderId}`),
+  getOrder: async (orderId) => {
+    try {
+      if (!orderId) {
+        throw new Error('Order ID is required');
+      }
+
+      const response = await api.get(`/purchases/${orderId}`);
+
+      // Ensure response has the expected structure
+      if (!response.data) {
+        throw new Error('Invalid response from server');
+      }
+
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          items: response.data.items || [], // Ensure items array exists
+          totalPrice: response.data.totalPrice || 0
+        }
+      };
+    } catch (error) {
+      console.error('Error getting order:', {
+        orderId,
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+      throw error;
+    }
+  }
 };
 
 export default cartService;

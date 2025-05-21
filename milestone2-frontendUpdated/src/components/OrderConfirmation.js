@@ -1,36 +1,33 @@
 // src/components/OrderConfirmation.js
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { cartService } from '../services/cartService';
 
 const OrderConfirmation = () => {
-  const { state } = useLocation();
+  const { orderId } = useParams();
   const navigate = useNavigate();
-  const [orderDetails, setOrderDetails] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState(null);
   const [error, setError] = useState(null);
-
-  const orderId = state?.orderId;
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
+    const fetchOrder = async () => {
       try {
-        if (!orderId) {
-          setError('No order ID found');
-          setLoading(false);
-          return;
-        }
-
+        setLoading(true);
         const response = await cartService.getOrder(orderId);
-        setOrderDetails(response.data);
+        setOrder(response.data);
+        setError(null);
       } catch (err) {
-        setError(err.response?.data?.message || 'Failed to fetch order details');
+        setError(err.message || 'Failed to load order details');
+        setOrder(null);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrderDetails();
+    if (orderId) {
+      fetchOrder();
+    }
   }, [orderId]);
 
   if (loading) {
@@ -41,10 +38,10 @@ const OrderConfirmation = () => {
     );
   }
 
-  if (error || !orderDetails) {
+  if (error) {
     return (
       <div style={{ padding: '2em', textAlign: 'center' }}>
-        <h2>{error || 'No order data found.'}</h2>
+        <h2>Error: {error}</h2>
         <button className="submit-order" onClick={() => navigate('/')}>
           Return Home
         </button>
@@ -52,23 +49,27 @@ const OrderConfirmation = () => {
     );
   }
 
-  const { items: cartItems, paymentMethod, paymentDetails: cardInfo, total, subtotal, tax, orderNumber } = orderDetails;
-
-  // mask card number
-  const maskedCard = cardInfo?.cardNumber
-    ? '**** **** **** ' + cardInfo.cardNumber.slice(-4)
-    : '';
+  if (!order || !order.items) {
+    return (
+      <div style={{ padding: '2em', textAlign: 'center' }}>
+        <h2>No order details available</h2>
+        <button className="submit-order" onClick={() => navigate('/')}>
+          Return Home
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="order-confirmation" style={{ padding: '2em', textAlign: 'center' }}>
       <h2>Order Confirmed!</h2>
 
       <p>Your order number is:</p>
-      <strong>{orderNumber}</strong>
+      <strong>{orderId}</strong>
 
       <h3 style={{ marginTop: '1.5em' }}>Items in Your Order:</h3>
       <ul style={{ listStyle: 'disc', textAlign: 'left', display: 'inline-block' }}>
-        {cartItems.map((item, idx) => (
+        {order.items.map((item, idx) => (
           <li key={idx}>
             {item.name} — EGP {item.price.toFixed(2)}
           </li>
@@ -76,21 +77,21 @@ const OrderConfirmation = () => {
       </ul>
 
       <div style={{ marginTop: '1em' }}>
-        <p><strong>Subtotal:</strong> EGP {subtotal.toFixed(2)}</p>
-        <p><strong>Tax (14%):</strong> EGP {tax.toFixed(2)}</p>
-        <p><strong>Total:</strong> EGP {total.toFixed(2)}</p>
+        <p><strong>Subtotal:</strong> EGP {order.subtotal.toFixed(2)}</p>
+        <p><strong>Tax (14%):</strong> EGP {order.tax.toFixed(2)}</p>
+        <p><strong>Total:</strong> EGP {order.total.toFixed(2)}</p>
       </div>
 
       <div style={{ marginTop: '1em' }}>
         <p><strong>Payment Method:</strong>{' '}
-          {paymentMethod === 'cod'
+          {order.paymentMethod === 'cod'
             ? 'Cash on Delivery'
             : 'Credit Card'}
         </p>
-        {paymentMethod === 'card' && cardInfo && (
+        {order.paymentMethod === 'card' && order.paymentDetails && (
           <div style={{ marginTop: '0.5em' }}>
-            <p><strong>Card:</strong> {maskedCard}</p>
-            <p><strong>Expiry:</strong> {cardInfo.expiry}</p>
+            <p><strong>Card:</strong> {order.paymentDetails.cardNumber}</p>
+            <p><strong>Expiry:</strong> {order.paymentDetails.expiry}</p>
           </div>
         )}
       </div>
