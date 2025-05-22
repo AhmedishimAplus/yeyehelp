@@ -6,6 +6,31 @@ const authenticateToken = require('../middlewares/authenticateToken');
 
 const router = express.Router();
 
+// Get user's purchase history
+router.get('/history', authenticateToken, async (req, res) => {
+    try {
+        const purchases = await Purchase.find({ userId: req.user.id })
+            .sort({ purchasedAt: -1 }); // Sort by date, newest first
+
+        res.status(200).json({
+            success: true,
+            purchases: purchases.map(purchase => ({
+                purchasedAt: purchase.purchasedAt,
+                items: purchase.items,
+                totalPrice: purchase.totalPrice,
+                paymentMethod: purchase.paymentMethod,
+                status: purchase.status
+            }))
+        });
+    } catch (error) {
+        console.error('Error getting purchase history:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch purchase history'
+        });
+    }
+});
+
 // Add to Cart
 router.post('/cart', authenticateToken, async (req, res) => {
     const { kitchenId, dishName, quantity, price } = req.body;
@@ -514,31 +539,6 @@ router.post('/complete', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Error completing purchase:', error);
         res.status(500).json({ message: 'Internal server error' });
-    }
-});
-
-// Get user's purchase history
-router.get('/history', authenticateToken, async (req, res) => {
-    try {
-        const purchases = await Purchase.find({ userId: req.user.id })
-            .sort({ purchasedAt: -1 }); // Sort by date, newest first
-
-        res.status(200).json({
-            success: true,
-            purchases: purchases.map(purchase => ({
-                purchasedAt: purchase.purchasedAt,
-                items: purchase.items,
-                totalPrice: purchase.totalPrice,
-                paymentMethod: purchase.paymentMethod,
-                status: purchase.status
-            }))
-        });
-    } catch (error) {
-        console.error('Error getting purchase history:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to fetch purchase history'
-        });
     }
 });
 

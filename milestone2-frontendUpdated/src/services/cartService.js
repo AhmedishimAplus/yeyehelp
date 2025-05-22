@@ -285,21 +285,12 @@ export const cartService = {
   // Get purchase history
   getPurchaseHistory: async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/purchases/history`, {
-        method: 'GET',
+      const response = await axios.get(`${API_URL}/purchases/history`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         }
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch purchase history');
-      }
-
-      const data = await response.json();
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Error fetching purchase history:', error);
       throw error;
