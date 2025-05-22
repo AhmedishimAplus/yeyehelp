@@ -33,7 +33,7 @@ export default function PurchaseHistory() {
         };
 
         fetchPurchases();
-    }, []);    if (loading) return (
+    }, []); if (loading) return (
         <div className="purchase-history">
             <div className="loading-spinner">
                 <h3>Loading purchase history...</h3>
@@ -96,6 +96,6 @@ export default function PurchaseHistory() {
             )}
         </div>
     );
-        </div>
+        </div >
     );
 }
