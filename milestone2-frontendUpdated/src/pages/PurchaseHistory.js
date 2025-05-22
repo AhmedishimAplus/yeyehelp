@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { cartService } from '../services/cartService';
 
+const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+};
+
 export default function PurchaseHistory() {
     const [purchases, setPurchases] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,42 +33,69 @@ export default function PurchaseHistory() {
         };
 
         fetchPurchases();
-    }, []);
+    }, []);    if (loading) return (
+        <div className="purchase-history">
+            <div className="loading-spinner">
+                <h3>Loading purchase history...</h3>
+            </div>
+        </div>
+    );
 
-    if (loading) return <div>Loading purchase history...</div>;
-    if (error) return <div className="error-message">{error}</div>;
+    if (error) return (
+        <div className="purchase-history">
+            <div className="no-purchases">
+                <h3 style={{ color: '#dc3545' }}>{error}</h3>
+            </div>
+        </div>
+    );
 
     return (
         <div className="purchase-history">
             <h2>Purchase History</h2>
             {purchases.length === 0 ? (
-                <p>No purchase history available.</p>
+                <div className="no-purchases">
+                    <h3>No Orders Yet</h3>
+                    <p>Your completed orders will appear here</p>
+                </div>
             ) : (
                 <div className="purchases-list">
                     {purchases.map((purchase, index) => (
                         <div key={index} className="purchase-card">
                             <div className="purchase-header">
-                                <p><strong>Date:</strong> {new Date(purchase.purchasedAt).toLocaleDateString()}</p>
-                                <p><strong>Payment Method:</strong> {purchase.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Visa Card'}</p>
-                                <p><strong>Status:</strong> {purchase.status}</p>
+                                <div className="purchase-date">
+                                    {formatDate(purchase.purchasedAt)}
+                                </div>
+                                <span className={`purchase-status status-${purchase.status.toLowerCase()}`}>
+                                    {purchase.status}
+                                </span>
                             </div>
                             <div className="purchase-items">
-                                <h4>Items:</h4>
-                                <ul>
+                                <h4>Order Items</h4>
+                                <div className="item-list">
                                     {purchase.items.map((item, idx) => (
-                                        <li key={idx}>
-                                            {item.dishName} - Quantity: {item.quantity} - EGP {item.price.toFixed(2)}
-                                        </li>
+                                        <div key={idx} className="item-row">
+                                            <span className="item-name">{item.dishName}</span>
+                                            <span className="item-details">
+                                                {item.quantity}x · EGP {item.price.toFixed(2)}
+                                            </span>
+                                        </div>
                                     ))}
-                                </ul>
+                                </div>
                             </div>
                             <div className="purchase-total">
-                                <p><strong>Total Price:</strong> EGP {purchase.totalPrice.toFixed(2)}</p>
+                                <div className="payment-method">
+                                    {purchase.paymentMethod === 'cash' ? 'Cash on Delivery' : 'Paid by Card'}
+                                </div>
+                                <div className="total-price">
+                                    EGP {purchase.totalPrice.toFixed(2)}
+                                </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+        </div>
+    );
         </div>
     );
 }

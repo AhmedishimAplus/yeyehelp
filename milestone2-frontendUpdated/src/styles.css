@@ -907,3 +907,146 @@ input.error, select.error {
   background: #f3f4f6;
 }
 
+/* Purchase History Styles */
+.purchase-history {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+}
+
+.purchase-history h2 {
+    color: #333;
+    text-align: center;
+    margin-bottom: 2.5rem;
+    font-size: 2.2rem;
+    font-weight: 600;
+}
+
+.purchases-list {
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.purchase-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    padding: 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.purchase-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.purchase-header {
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.purchase-date {
+    font-size: 1.1rem;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.purchase-status {
+    display: inline-block;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+}
+
+.status-completed {
+    background-color: #e6f7ed;
+    color: #28a745;
+}
+
+.status-pending {
+    background-color: #fff3e6;
+    color: #fd7e14;
+}
+
+.status-cancelled {
+    background-color: #ffe6e6;
+    color: #dc3545;
+}
+
+.purchase-items {
+    margin: 1.5rem 0;
+}
+
+.purchase-items h4 {
+    color: #444;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.item-list {
+    list-style: none;
+    padding: 0;
+}
+
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 0;
+    border-bottom: 1px dashed #eee;
+}
+
+.item-name {
+    color: #555;
+    font-weight: 500;
+}
+
+.item-details {
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.purchase-total {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 2px solid #f5f5f5;
+}
+
+.payment-method {
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.total-price {
+    color: #333;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-align: right;
+}
+
+.no-purchases {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.no-purchases h3 {
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+.no-purchases p {
+    color: #666;
+}
+
+.loading-spinner {
+    text-align: center;
+    padding: 3rem;
+}
+
