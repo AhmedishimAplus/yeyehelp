@@ -24,7 +24,6 @@ export default function Navbar() {
         <ul>
           <li><Link to="/">Home</Link></li>
           <li><Link to="/chefs">Chefs</Link></li>
-          <li><Link to="/order">Order</Link></li>
           <li>
             <Link to="/cart" className="cart-link">
               Cart {totalItems > 0 && <span className="cart-count">{totalItems}</span>}
