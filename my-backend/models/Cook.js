@@ -18,6 +18,11 @@ const cookSchema = new mongoose.Schema({
     verified: { type: Boolean, default: false },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Reference to User
     image: { type: String, default: null }, // URL for cook image
+    salesStats: {
+        totalSales: { type: Number, default: 0 },
+        totalOrders: { type: Number, default: 0 },
+        totalRevenue: { type: Number, default: 0 }
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Cook', cookSchema);

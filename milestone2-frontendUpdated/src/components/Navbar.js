@@ -30,6 +30,7 @@ export default function Navbar() {
               Cart {totalItems > 0 && <span className="cart-count">{totalItems}</span>}
             </Link>
           </li>
+          <li><Link to="/purchase-history">Purchase History</Link></li>
           {!isAuthenticated && <li><Link to="/login">Login</Link></li>}
           {!isAuthenticated && <li><Link to="/register">Register</Link></li>}
           {isAuthenticated && <li><button onClick={handleLogout} className="logout-btn">Logout</button></li>}

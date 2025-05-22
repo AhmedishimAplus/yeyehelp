@@ -1,11 +1,17 @@
-import api from '../utils/api';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
 
 export const cartService = {
   // Get user's cart
   getCart: async () => {
     try {
       console.log('Getting cart...');
-      const response = await api.get('/purchases/cart');
+      const response = await axios.get(`${API_URL}/purchases/cart`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       console.log('Cart response:', response.data);
 
       // Ensure we have a valid response structure
@@ -55,121 +61,30 @@ export const cartService = {
   // Add item to cart
   addToCart: async (item) => {
     try {
-      console.log('Adding item to cart:', item);
-
-      // Validate item data
-      if (!item.chefId && !item.kitchenId) {
-        throw new Error('Missing chefId/kitchenId');
-      }
-      if (!item.dishName) {
-        throw new Error('Missing dishName');
-      }
-      if (!item.price || isNaN(parseFloat(item.price))) {
-        throw new Error('Invalid or missing price');
-      }
-
-      // Ensure all required fields are present and properly formatted
-      const payload = {
-        kitchenId: (item.chefId || item.kitchenId).toString(), // Convert to string for ObjectId
-        dishName: item.dishName,
-        quantity: Math.max(1, parseInt(item.quantity) || 1),
-        price: parseFloat(item.price) // Ensure price is a number
-      };
-
-      // Log the exact payload being sent
-      console.log('Sending cart payload:', payload);
-
-      // First check if item already exists in cart
-      const cartResponse = await api.get('/purchases/cart');
-      const currentCart = cartResponse.data.cart || [];
-      const existingItem = currentCart.find(
-        cartItem => cartItem.kitchenId === payload.kitchenId && cartItem.dishName === payload.dishName
-      );
-
-      let response;
-      if (existingItem) {
-        // Update quantity if item exists
-        response = await api.put('/purchases/cart', {
-          kitchenId: payload.kitchenId,
-          dishName: payload.dishName,
-          quantity: existingItem.quantity + payload.quantity,
-          price: payload.price // Ensure price is updated
-        });
-      } else {
-        // Add new item if it doesn't exist
-        response = await api.post('/purchases/cart', payload);
-      }
-
-      console.log('Cart operation response:', response.data);
-
-      // Verify the cart item was added/updated correctly
-      const updatedCartResponse = await api.get('/purchases/cart');
-      const updatedCart = updatedCartResponse.data.cart || [];
-      const updatedItem = updatedCart.find(
-        cartItem => cartItem.kitchenId === payload.kitchenId && cartItem.dishName === payload.dishName
-      );
-
-      if (!updatedItem) {
-        throw new Error('Failed to add item to cart');
-      }
-
-      // Return the updated cart item with the correct format for the frontend
-      return {
-        ...response,
-        data: {
-          ...response.data,
-          cart: updatedCart.map(item => ({
-            chefId: item.kitchenId,
-            kitchenId: item.kitchenId,
-            dishName: item.dishName,
-            quantity: item.quantity,
-            price: parseFloat(item.price) // Ensure price is included and parsed as float
-          }))
+      const response = await axios.post(`${API_URL}/purchases/cart`, item, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         }
-      };
-    } catch (error) {
-      console.error('Error adding to cart:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
       });
+      return response.data;
+    } catch (error) {
       throw error;
     }
   },
 
   // Update cart item quantity
-  updateCartItem: async (itemId, quantity) => {
+  updateQuantity: async (item, newQuantity) => {
     try {
-      console.log('Updating cart item:', { itemId, quantity });
-
-      // Get current cart to find the item's price
-      const cartResponse = await api.get('/purchases/cart');
-      const currentCart = cartResponse.data.cart || [];
-      const existingItem = currentCart.find(
-        item => item.kitchenId === itemId.kitchenId && item.dishName === itemId.dishName
-      );
-
-      if (!existingItem) {
-        throw new Error('Item not found in cart');
-      }
-
-      const payload = {
-        kitchenId: itemId.kitchenId,
-        dishName: itemId.dishName,
-        quantity: Math.max(1, parseInt(quantity)),
-        price: parseFloat(existingItem.price) // Keep the existing price
-      };
-
-      console.log('Sending update payload:', payload);
-      const response = await api.put('/purchases/cart', payload);
-      console.log('Update response:', response.data);
-      return response;
-    } catch (error) {
-      console.error('Error updating cart item:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
+      const response = await axios.put(`${API_URL}/purchases/cart`, {
+        ...item,
+        quantity: newQuantity
+      }, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
       });
+      return response.data;
+    } catch (error) {
       throw error;
     }
   },
@@ -177,50 +92,42 @@ export const cartService = {
   // Remove item from cart
   removeFromCart: async (item) => {
     try {
-      console.log('Removing item from cart:', item);
-
-      // Validate item data
-      if (!item.chefId) {
-        throw new Error('Missing chefId');
-      }
-      if (!item.dishName) {
-        throw new Error('Missing dishName');
-      }
-
-      // Format payload for backend
-      const payload = {
-        kitchenId: item.chefId.toString(),
-        dishName: item.dishName
-      };
-
-      console.log('Sending remove payload:', payload);
-
-      const response = await api.delete('/purchases/cart', { data: payload });
-      console.log('Remove response:', response.data);
-
-      // Verify the cart item was removed correctly
-      const updatedCartResponse = await api.get('/purchases/cart');
-      const updatedCart = updatedCartResponse.data.cart || [];
-
-      // Return the updated cart with the correct format for the frontend
-      return {
-        ...response,
-        data: {
-          ...response.data,
-          cart: updatedCart.map(item => ({
-            chefId: item.kitchenId,
-            dishName: item.dishName,
-            quantity: parseInt(item.quantity) || 1,
-            price: parseFloat(item.price) || 0
-          }))
+      const response = await axios.delete(`${API_URL}/purchases/cart`, {
+        data: item,
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
         }
-      };
-    } catch (error) {
-      console.error('Error removing from cart:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
       });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Clear cart
+  clearCart: async () => {
+    try {
+      const response = await axios.delete(`${API_URL}/purchases/cart/clear`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Complete purchase
+  completePurchase: async (purchaseData) => {
+    try {
+      const response = await axios.post(`${API_URL}/purchases/complete`, purchaseData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      return response.data;
+    } catch (error) {
       throw error;
     }
   },
@@ -231,7 +138,11 @@ export const cartService = {
       console.log('Creating order with data:', orderData);
 
       // Get current cart state
-      const cartResponse = await api.get('/purchases/cart');
+      const cartResponse = await axios.get(`${API_URL}/purchases/cart`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       console.log('Raw cart response:', cartResponse);
 
       // Ensure cart data exists
@@ -297,7 +208,11 @@ export const cartService = {
       console.log('Sending formatted order matching schema:', formattedOrder);
 
       // Use the correct endpoint for creating a purchase
-      const response = await api.post('/purchases', formattedOrder);
+      const response = await axios.post(`${API_URL}/purchases`, formattedOrder, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       console.log('Order response:', response.data);
 
       // Ensure response has the expected structure
@@ -324,7 +239,11 @@ export const cartService = {
   },
 
   // Get order history
-  getOrderHistory: () => api.get('/users/order-history'),
+  getOrderHistory: () => axios.get(`${API_URL}/users/order-history`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem('token')}`
+    }
+  }),
 
   // Get specific order
   getOrder: async (orderId) => {
@@ -333,7 +252,11 @@ export const cartService = {
         throw new Error('Order ID is required');
       }
 
-      const response = await api.get(`/purchases/${orderId}`);
+      const response = await axios.get(`${API_URL}/purchases/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
 
       // Ensure response has the expected structure
       if (!response.data) {
@@ -355,6 +278,30 @@ export const cartService = {
         data: error.response?.data,
         message: error.message
       });
+      throw error;
+    }
+  },
+
+  // Get purchase history
+  getPurchaseHistory: async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/purchases/history`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch purchase history');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching purchase history:', error);
       throw error;
     }
   }

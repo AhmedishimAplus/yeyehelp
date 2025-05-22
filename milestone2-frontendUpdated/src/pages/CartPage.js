@@ -8,9 +8,9 @@ export default function CartPage() {
   const { cartItems, updateQuantity, removeFromCart } = useCart();
 
   const handleCheckout = (paymentMethod, orderId) => {
-    navigate('/order-confirmation', {
-      state: { orderId, paymentMethod }
-    });
+    // navigate('/order-confirmation', {
+    //   state: { orderId, paymentMethod }
+    // });
   };
 
   const handleUpdateQuantity = async (item, newQuantity) => {
@@ -30,7 +30,7 @@ export default function CartPage() {
 
   const handleRemoveItem = async (item) => {
     console.log('Removing item:', item); // Debug log
-    
+
     // Ensure we have the required fields
     if (!item.dishName) {
       console.error('Cannot remove item: missing dishName');
@@ -55,7 +55,7 @@ export default function CartPage() {
 
     console.log('Removing item with data:', itemToRemove);
     const success = await removeFromCart(itemToRemove);
-    
+
     if (!success) {
       console.error('Failed to remove item');
     }
@@ -68,9 +68,9 @@ export default function CartPage() {
         {cartItems.map((item, index) => (
           <div key={`${item.chefId || 'unknown'}-${item.dishName}-${index}`} className="cart-item">
             {item.image && (
-              <img 
-                src={item.image} 
-                alt={item.dishName} 
+              <img
+                src={item.image}
+                alt={item.dishName}
                 className="cart-item-image"
                 onError={(e) => {
                   e.target.onerror = null;
@@ -85,21 +85,21 @@ export default function CartPage() {
             </div>
             <div className="cart-item-controls">
               <div className="quantity-controls">
-                <button 
+                <button
                   onClick={() => handleUpdateQuantity(item, (item.quantity || 1) - 1)}
                   disabled={(item.quantity || 1) <= 1}
                 >
                   -
                 </button>
                 <span>{item.quantity || 1}</span>
-                <button 
+                <button
                   onClick={() => handleUpdateQuantity(item, (item.quantity || 1) + 1)}
                 >
                   +
                 </button>
               </div>
-              <button 
-                className="remove-item" 
+              <button
+                className="remove-item"
                 onClick={() => handleRemoveItem(item)}
               >
                 Remove
@@ -109,7 +109,7 @@ export default function CartPage() {
         ))}
       </div>
       <Cart onCheckout={handleCheckout} />
-      <button 
+      <button
         className="continue-shopping"
         onClick={() => navigate(-1)}
       >

@@ -3,122 +3,87 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from './CartProvider';
 import { cartService } from '../services/cartService';
-import { validateCardNumber, validateCCV, validateExpiry, formatCardNumber } from '../utils/validations';
 
 export default function Cart() {
   const navigate = useNavigate();
-  const { 
-    cartItems, 
-    orderInfo, 
-    clearCart, 
-    subtotal, 
-    tax, 
-    total 
+  const {
+    cartItems,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    subtotal,
+    tax,
+    total
   } = useCart();
-  
-  const [paymentMethod, setPaymentMethod] = useState('cod');
-  const [cardNumber, setCardNumber] = useState('');
-  const [ccv, setCcv] = useState('');
-  const [expiry, setExpiry] = useState('');
+
+  const [paymentMethod, setPaymentMethod] = useState('cash');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
-  const [validationErrors, setValidationErrors] = useState({});
+  const [deliveryInfo, setDeliveryInfo] = useState({
+    name: '',
+    location: '',
+    phone: ''
+  });
 
-  const validatePaymentDetails = () => {
-    if (paymentMethod !== 'card') return true;
-
-    const errors = {};
-    
-    if (!validateCardNumber(cardNumber)) {
-      errors.cardNumber = 'Please enter a valid card number';
+  const handleQuantityChange = async (item, newQuantity) => {
+    if (newQuantity < 1) return;
+    try {
+      await updateQuantity(item, newQuantity);
+    } catch (err) {
+      setError('Failed to update quantity');
     }
-    
-    if (!validateCCV(ccv)) {
-      errors.ccv = 'Please enter a valid CCV (3-4 digits)';
-    }
-    
-    if (!validateExpiry(expiry)) {
-      errors.expiry = 'Please enter a valid expiry date';
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
   };
 
-  const handleCardNumberChange = (e) => {
-    const formatted = formatCardNumber(e.target.value);
-    setCardNumber(formatted);
-    setValidationErrors(prev => ({ ...prev, cardNumber: null }));
+  const handleRemoveItem = async (item) => {
+    try {
+      await removeFromCart(item);
+    } catch (err) {
+      setError('Failed to remove item');
+    }
   };
 
   const handleSubmit = async () => {
     try {
       setIsProcessing(true);
       setError(null);
-      setValidationErrors({});
-
-      if (!orderInfo) {
-        setError('Please provide delivery information first');
-        navigate('/order');
-        return;
-      }
 
       if (cartItems.length === 0) {
         setError('Please add items to your cart before checking out.');
         return;
       }
 
-      if (!validatePaymentDetails()) {
+      // Validate delivery information
+      if (!deliveryInfo.name || !deliveryInfo.location || !deliveryInfo.phone) {
+        setError('Please fill in all delivery information fields.');
         return;
       }
 
-      // Create order data with all necessary information
-      const orderData = {
-        items: cartItems.map(item => ({
-          chefId: item.chefId,
-          kitchenId: item.kitchenId || item.chefId,
-          dishName: item.dishName,
-          quantity: Math.max(1, parseInt(item.quantity) || 1)
-        })),
-        paymentMethod,
-        customerInfo: {
-          ...orderInfo,
-          paymentMethod,
-          cardInfo: paymentMethod === 'card' ? {
-            cardNumber,
-            ccv,
-            expiry
-          } : undefined
-        }
-      };
-
-      console.log('Sending order data:', orderData); // Debug log
-
       // Send order to backend
-      const response = await cartService.createOrder(orderData);
-      console.log('Order response:', response); // Debug log
-      
-      if (response.data && response.data.purchase) {
+      const response = await cartService.completePurchase({
+        paymentMethod,
+        items: cartItems,
+        deliveryInfo
+      });
+
+      if (response && response.purchase) {
         // Clear the cart after successful order
         await clearCart();
-        
-        // Redirect to order confirmation
-        navigate('/order-confirmation', {
-          state: { 
-            orderId: response.data.purchase._id,
-            paymentMethod,
-            customerInfo: orderInfo
-          }
+        setError(null);
+        alert('Purchase completed successfully!');
+        // Reset delivery info
+        setDeliveryInfo({
+          name: '',
+          location: '',
+          phone: ''
         });
       } else {
         throw new Error('Invalid response from server');
       }
-      
+
     } catch (err) {
-      console.error('Order error:', err); // Debug log
+      console.error('Order error:', err);
       const errorMessage = err.response?.data?.message || err.message || 'An error occurred while processing your order.';
       setError(errorMessage);
-      alert(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -134,45 +99,81 @@ export default function Cart() {
         </div>
       )}
 
-      {orderInfo && (
-        <div className="delivery-info" style={{ marginBottom: '1em' }}>
-          <h4>Delivery Information</h4>
-          <p>Name: {orderInfo.name}</p>
-          <p>Location: {orderInfo.location}</p>
-          {orderInfo.phone && <p>Phone: {orderInfo.phone}</p>}
-        </div>
-      )}
-
       {cartItems.length === 0 ? (
         <p>Your cart is empty</p>
       ) : (
         <>
-          <ul>
+          <div className="cart-items">
             {cartItems.map((item, index) => (
-              <li key={`${item.chefId || 'unknown'}-${item.dishName}-${index}`}>
-                {item.dishName} ({item.quantity || 1}x) — EGP {item.price ? (item.price * (item.quantity || 1)).toFixed(2) : '0.00'}
-              </li>
+              <div key={`${item.kitchenId}-${item.dishName}-${index}`} className="cart-item">
+                <div className="item-details">
+                  <h4>{item.dishName}</h4>
+                  <p>Price: EGP {item.price.toFixed(2)}</p>
+                </div>
+                <div className="quantity-controls">
+                  <button
+                    onClick={() => handleQuantityChange(item, item.quantity - 1)}
+                    disabled={item.quantity <= 1}
+                  >
+                    -
+                  </button>
+                  <span>{item.quantity}</span>
+                  <button
+                    onClick={() => handleQuantityChange(item, item.quantity + 1)}
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="item-total">
+                  <p>Total: EGP {(item.price * item.quantity).toFixed(2)}</p>
+                </div>
+                <button
+                  className="remove-button"
+                  onClick={() => handleRemoveItem(item)}
+                >
+                  Remove
+                </button>
+              </div>
             ))}
-          </ul>
-
-          <div className="cart-totals">
-            <p><strong>Subtotal:</strong> EGP {subtotal ? subtotal.toFixed(2) : '0.00'}</p>
-            <p><strong>Tax (14%):</strong> EGP {tax ? tax.toFixed(2) : '0.00'}</p>
-            <p><strong>Total:</strong> EGP {total ? total.toFixed(2) : '0.00'}</p>
           </div>
 
-          <div className="payment-methods" style={{ marginTop: '1em' }}>
+          <div className="cart-totals">
+            <p><strong>Subtotal:</strong> EGP {subtotal.toFixed(2)}</p>
+            <p><strong>Tax (14%):</strong> EGP {tax.toFixed(2)}</p>
+            <p><strong>Total:</strong> EGP {total.toFixed(2)}</p>
+          </div>
+
+          <div className="delivery-info">
+            <h4>Delivery Information</h4>
+            <input
+              type="text"
+              placeholder="Your Name"
+              value={deliveryInfo.name}
+              onChange={(e) => setDeliveryInfo({ ...deliveryInfo, name: e.target.value })}
+            />
+            <input
+              type="text"
+              placeholder="Your Location"
+              value={deliveryInfo.location}
+              onChange={(e) => setDeliveryInfo({ ...deliveryInfo, location: e.target.value })}
+            />
+            <input
+              type="tel"
+              placeholder="Phone Number"
+              value={deliveryInfo.phone}
+              onChange={(e) => setDeliveryInfo({ ...deliveryInfo, phone: e.target.value })}
+            />
+          </div>
+
+          <div className="payment-methods">
             <p><strong>Select Payment Method:</strong></p>
             <label>
               <input
                 type="radio"
                 name="payment"
-                value="cod"
-                checked={paymentMethod === 'cod'}
-                onChange={() => {
-                  setPaymentMethod('cod');
-                  setValidationErrors({});
-                }}
+                value="cash"
+                checked={paymentMethod === 'cash'}
+                onChange={() => setPaymentMethod('cash')}
               />{' '}
               Cash on Delivery
             </label>
@@ -180,90 +181,23 @@ export default function Cart() {
               <input
                 type="radio"
                 name="payment"
-                value="card"
-                checked={paymentMethod === 'card'}
-                onChange={() => setPaymentMethod('card')}
+                value="visa"
+                checked={paymentMethod === 'visa'}
+                onChange={() => setPaymentMethod('visa')}
               />{' '}
-              Credit Card
+              Visa Card
             </label>
           </div>
 
-          {paymentMethod === 'card' && (
-            <div className="card-details" style={{ marginTop: '1em', textAlign: 'left' }}>
-              <div>
-                <label>Card Number:</label><br/>
-                <input
-                  type="text"
-                  value={cardNumber}
-                  onChange={handleCardNumberChange}
-                  placeholder="1234 5678 9012 3456"
-                  maxLength="19"
-                />
-                {validationErrors.cardNumber && (
-                  <div className="error-message" style={{ color: 'red', fontSize: '0.8em' }}>
-                    {validationErrors.cardNumber}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label>CCV:</label><br/>
-                <input
-                  type="text"
-                  value={ccv}
-                  onChange={e => {
-                    setCcv(e.target.value);
-                    setValidationErrors(prev => ({ ...prev, ccv: null }));
-                  }}
-                  placeholder="123"
-                  maxLength="4"
-                  style={{ width: '80px' }}
-                />
-                {validationErrors.ccv && (
-                  <div className="error-message" style={{ color: 'red', fontSize: '0.8em' }}>
-                    {validationErrors.ccv}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label>Expiry Date:</label><br/>
-                <input
-                  type="month"
-                  value={expiry}
-                  onChange={e => {
-                    setExpiry(e.target.value);
-                    setValidationErrors(prev => ({ ...prev, expiry: null }));
-                  }}
-                />
-                {validationErrors.expiry && (
-                  <div className="error-message" style={{ color: 'red', fontSize: '0.8em' }}>
-                    {validationErrors.expiry}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          <button
+            className="checkout-button"
+            onClick={handleSubmit}
+            disabled={isProcessing}
+          >
+            {isProcessing ? 'Processing...' : 'Complete Purchase'}
+          </button>
         </>
       )}
-
-      {!orderInfo && cartItems.length > 0 && (
-        <div style={{ marginTop: '1em' }}>
-          <button 
-            className="order-submit"
-            onClick={() => navigate('/order')}
-          >
-            Add Delivery Information
-          </button>
-        </div>
-      )}
-
-      <button
-        className="submit-order"
-        onClick={handleSubmit}
-        disabled={isProcessing || cartItems.length === 0 || !orderInfo}
-        style={{ marginTop: '1em' }}
-      >
-        {isProcessing ? 'Processing...' : cartItems.length === 0 ? 'Cart Empty' : !orderInfo ? 'Add Delivery Info' : 'Checkout'}
-      </button>
     </div>
   );
 }

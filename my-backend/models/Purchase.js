@@ -11,6 +11,16 @@ const purchaseSchema = new mongoose.Schema({
     }
   ],
   totalPrice: { type: Number, required: true },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'visa'],
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'completed', 'cancelled'],
+    default: 'pending'
+  },
   purchasedAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 

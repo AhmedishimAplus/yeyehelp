@@ -25,18 +25,18 @@ export default function ChefMenu() {
         const itemName = item.dishName || item.name;
         const dishName = dish.dishName || dish.name;
         const matches = itemName === dishName;
-        console.log('Comparing menu items:', { 
+        console.log('Comparing menu items:', {
           menuItemName: itemName,
           dishName: dishName,
-          matches 
+          matches
         }); // Debug log
         return matches;
       });
 
       if (!menuItem) {
-        console.error('Menu item not found:', { 
-          dish, 
-          menuItems: chef.menu 
+        console.error('Menu item not found:', {
+          dish,
+          menuItems: chef.menu
         }); // Debug log
         throw new Error('Menu item not found');
       }
@@ -51,10 +51,10 @@ export default function ChefMenu() {
         image: menuItem.image || dish.image,
         description: menuItem.description || dish.description
       };
-      
+
       console.log('Adding to cart payload:', payload); // Debug log
       const success = await addToCart(payload);
-      
+
       if (success) {
         setMessage(`Added ${menuItem.dishName || menuItem.name} to cart!`);
       } else {
@@ -69,9 +69,9 @@ export default function ChefMenu() {
   };
 
   const handleCheckout = (paymentMethod, orderId) => {
-    navigate('/order-confirmation', {
-      state: { orderId, paymentMethod }
-    });
+    // navigate('/order-confirmation', {
+    //   state: { orderId, paymentMethod }
+    // });
   };
 
   if (!chef) {
@@ -119,7 +119,7 @@ export default function ChefMenu() {
               }}
               onAddToCart={handleAddToCart}
               onUpdateQuantity={updateQuantity}
-              quantity={cartItems.find(item => 
+              quantity={cartItems.find(item =>
                 (item.chefId === chef._id || item.kitchenId === chef._id) && item.dishName === (dish.dishName || dish.name)
               )?.quantity || 0}
             />

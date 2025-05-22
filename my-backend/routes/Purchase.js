@@ -18,7 +18,7 @@ router.post('/cart', authenticateToken, async (req, res) => {
 
         // Validate required fields
         if (!kitchenId || !dishName || !quantity || !price) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: 'Missing required fields',
                 required: ['kitchenId', 'dishName', 'quantity', 'price']
             });
@@ -43,18 +43,18 @@ router.post('/cart', authenticateToken, async (req, res) => {
             existingCartItem.price = parseFloat(price); // Update price
         } else {
             // Add a new item to the cart
-            user.cart.push({ 
-                kitchenId, 
-                dishName, 
+            user.cart.push({
+                kitchenId,
+                dishName,
                 quantity: parseInt(quantity),
                 price: parseFloat(price)
             });
         }
 
         await user.save();
-        res.status(200).json({ 
-            message: 'Item added to cart successfully', 
-            cart: user.cart 
+        res.status(200).json({
+            message: 'Item added to cart successfully',
+            cart: user.cart
         });
     } catch (error) {
         console.error('Error adding to cart:', error);
@@ -74,7 +74,7 @@ router.put('/cart', authenticateToken, async (req, res) => {
 
         // Validate required fields
         if (!kitchenId || !dishName || !quantity || !price) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 message: 'Missing required fields',
                 required: ['kitchenId', 'dishName', 'quantity', 'price']
             });
@@ -102,9 +102,9 @@ router.put('/cart', authenticateToken, async (req, res) => {
         cartItem.price = parseFloat(price);
 
         await user.save();
-        res.status(200).json({ 
-            message: 'Cart item updated successfully', 
-            cart: user.cart 
+        res.status(200).json({
+            message: 'Cart item updated successfully',
+            cart: user.cart
         });
     } catch (error) {
         console.error('Error updating cart:', error);
@@ -436,9 +436,9 @@ router.post('/', authenticateToken, async (req, res) => {
 
         await user.save();
 
-        res.status(201).json({ 
-            message: 'Purchase completed successfully', 
-            purchase: newPurchase 
+        res.status(201).json({
+            message: 'Purchase completed successfully',
+            purchase: newPurchase
         });
     } catch (error) {
         console.error('Error creating purchase:', error);
@@ -457,6 +457,88 @@ router.get('/:purchaseId', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Complete Purchase
+router.post('/complete', authenticateToken, async (req, res) => {
+    const { paymentMethod } = req.body;
+
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (!user.cart || user.cart.length === 0) {
+            return res.status(400).json({ message: 'Cart is empty' });
+        }
+
+        if (!paymentMethod || !['cash', 'visa'].includes(paymentMethod)) {
+            return res.status(400).json({ message: 'Invalid payment method' });
+        }
+
+        // Calculate total price
+        const totalPrice = user.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+        // Create new purchase
+        const purchase = new Purchase({
+            userId: user._id,
+            items: user.cart,
+            totalPrice,
+            paymentMethod,
+            status: 'completed'
+        });
+
+        // Update cook sales statistics
+        for (const item of user.cart) {
+            const cook = await Cook.findById(item.kitchenId);
+            if (cook) {
+                cook.salesStats.totalSales += item.quantity;
+                cook.salesStats.totalOrders += 1;
+                cook.salesStats.totalRevenue += (item.price * item.quantity);
+                await cook.save();
+            }
+        }
+
+        // Save purchase and clear cart
+        await purchase.save();
+        user.orderHistory.push(purchase._id);
+        user.cart = [];
+        await user.save();
+
+        res.status(200).json({
+            message: 'Purchase completed successfully',
+            purchase
+        });
+    } catch (error) {
+        console.error('Error completing purchase:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Get user's purchase history
+router.get('/history', authenticateToken, async (req, res) => {
+    try {
+        const purchases = await Purchase.find({ userId: req.user.id })
+            .sort({ purchasedAt: -1 }); // Sort by date, newest first
+
+        res.status(200).json({
+            success: true,
+            purchases: purchases.map(purchase => ({
+                purchasedAt: purchase.purchasedAt,
+                items: purchase.items,
+                totalPrice: purchase.totalPrice,
+                paymentMethod: purchase.paymentMethod,
+                status: purchase.status
+            }))
+        });
+    } catch (error) {
+        console.error('Error getting purchase history:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch purchase history'
+        });
     }
 });
 
