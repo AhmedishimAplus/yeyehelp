@@ -79,8 +79,7 @@ export default function PurchaseHistory() {
                                                 {item.quantity}x · EGP {item.price.toFixed(2)}
                                             </span>
                                         </div>
-                                    ))}
-                                </div>
+                                    ))}                                </div>
                             </div>
                             <div className="purchase-total">
                                 <div className="payment-method">
@@ -95,7 +94,5 @@ export default function PurchaseHistory() {
                 </div>
             )}
         </div>
-    );
-        </div >
     );
 }
